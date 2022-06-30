@@ -3,13 +3,14 @@ import Image from "next/image";
 import { useRef, useState, useEffect } from "react";
 import styles from "../styles/Home.module.css";
 import Web3Modal from "web3modal";
-import { providers } from "ethers";
+import { providers, Contract } from "ethers";
 import { abi, WHITELIST_CONTRACT_ADDRESS } from "../constants";
 
 export default function Home() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [numOfWhitelisted, setNumOfWhitelisted] = useState(0);
   const [joinedWhitelist, setJoinedWhitelist] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const web3ModalRef = useRef();
 
@@ -35,6 +36,24 @@ export default function Home() {
     }
   };
 
+  const addAddressToWhiteList = async () => {
+    try {
+      const signer = await getProviderOrSigner(true);
+      const whitelistContract = new Contract(
+        WHITELIST_CONTRACT_ADDRESS,
+        abi,
+        signer
+      );
+      const tx = await whitelistContract.addAddressToWhitelist();
+      setLoading(true);
+      await tx.wait();
+      setLoading(false);
+      await getNumberOfWhitelisted();
+      setJoinedWhitelist(true);
+    } catch (error) {
+      console.log(error);
+    }
+  };
   const checkIfAddressIsWhitelisted = async () => {
     try {
       const signer = getProviderOrSigner(true);
@@ -81,6 +100,29 @@ export default function Home() {
     }
   };
 
+  const renderButton = () => {
+    if (walletConnected) {
+      if (joinedWhitelist) {
+        return (
+          <div className={styles.description}>Thanks for joining whitelist</div>
+        );
+      } else if (loading) {
+        return <button className={styles.button}>Loading...</button>;
+      } else {
+        return (
+          <button onClick={addAddressToWhiteList} className={styles.button}>
+            {" "}
+            Join the Whitelist
+          </button>
+        );
+      }
+    } else {
+      <button onClick={connectWallet} className={styles.button}>
+        Connect your wallet
+      </button>;
+    }
+  };
+
   useEffect(
     (walletConnected) => {
       if (!walletConnected) {
@@ -107,6 +149,7 @@ export default function Home() {
         <div className={styles.description}>
           {numOfWhitelisted} already joined the whitelist
         </div>
+        {renderButton()}
 
         <img className={styles.image} src="./crypto-devs.svg" />
       </main>
